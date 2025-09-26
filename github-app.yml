@@ -1,0 +1,43 @@
+# GitHub App Configuration for CyberSecScan
+# This file defines the permissions and settings for the GitHub App
+
+name: CyberSecScan
+description: AI-powered security scanning and automated fix generation
+url: https://github.com/Habib9612/cyber.io
+author: CyberSecScan Team
+
+# Default permissions for the app
+default_permissions:
+  # Repository permissions
+  contents: read
+  metadata: read
+  pull_requests: write
+  issues: write
+  checks: write
+  security_events: write
+  
+  # Organization permissions
+  members: read
+
+# Events the app subscribes to
+default_events:
+  - push
+  - pull_request
+  - repository
+  - installation
+  - installation_repositories
+
+# App settings
+public: true
+webhook_active: true
+
+# Installation settings
+setup_url: https://your-domain.com/setup
+setup_on_update: true
+
+# Features
+features:
+  - security_scanning
+  - automated_fixes
+  - pull_request_creation
+  - vulnerability_detection
