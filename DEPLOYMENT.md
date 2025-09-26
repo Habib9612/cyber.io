@@ -24,9 +24,9 @@ cp .env.example .env
 Edit `.env` file:
 
 ```env
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-AI_MODEL=gpt-4o-mini
+# DeepSeek Configuration
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+DEEPSEEK_MODEL=deepseek-coder
 
 # GitHub Configuration
 GITHUB_TOKEN=your_github_token_here
@@ -144,10 +144,10 @@ docker-compose -f docker-compose.prod.yml up -d
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for AI fixes | Yes | - |
+| `DEEPSEEK_API_KEY` | DeepSeek API key for AI fixes | Yes | - |
 | `GITHUB_TOKEN` | GitHub personal access token | Yes | - |
 | `GITHUB_USERNAME` | GitHub username | Yes | - |
-| `AI_MODEL` | OpenAI model to use | No | `gpt-4o-mini` |
+| `DEEPSEEK_MODEL` | DeepSeek model to use | No | `deepseek-coder` |
 | `NODE_ENV` | Environment mode | No | `development` |
 | `PORT` | Backend server port | No | `5000` |
 | `GITHUB_WEBHOOK_SECRET` | Webhook secret for GitHub | No | - |

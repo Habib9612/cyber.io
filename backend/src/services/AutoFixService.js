@@ -4,9 +4,9 @@ const path = require('path');
 
 class AutoFixService {
   constructor() {
-    this.apiKey = process.env.OPENAI_API_KEY;
-    this.model = process.env.AI_MODEL || 'gpt-4o-mini';
-    this.apiUrl = 'https://api.openai.com/v1/chat/completions';
+    this.apiKey = process.env.DEEPSEEK_API_KEY;
+    this.model = process.env.DEEPSEEK_MODEL || 'deepseek-coder';
+    this.apiUrl = 'https://api.deepseek.com/v1/chat/completions';
   }
 
   async generateFixes(scanResults, repoPath) {
@@ -143,7 +143,7 @@ Respond only with valid JSON.`;
 
   async callAI(prompt) {
     if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured');
+      throw new Error('DeepSeek API key not configured');
     }
 
     const response = await axios.post(this.apiUrl, {

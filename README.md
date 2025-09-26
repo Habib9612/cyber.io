@@ -6,7 +6,7 @@ CyberSecScan is a comprehensive, AI-powered cybersecurity platform that automati
 
 ### Core Capabilities
 - **Multi-Scanner Integration**: Combines Semgrep (SAST), Trivy (dependency/container scanning), and more
-- **AI-Powered Auto-Fixes**: Uses OpenAI GPT models to generate intelligent security fixes
+- **AI-Powered Auto-Fixes**: Uses DeepSeek Coder models to generate intelligent security fixes
 - **Automated Pull Requests**: Creates GitHub PRs with fixes and detailed explanations
 - **Security Scoring**: Provides letter grades and numerical scores for repository security
 - **Real-time Dashboard**: Modern React-based interface with live scan progress
@@ -30,7 +30,7 @@ CyberSecScan is a comprehensive, AI-powered cybersecurity platform that automati
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │    Backend      │    │   AI Engine     │
-│   (React)       │◄──►│   (Node.js)     │◄──►│   (OpenAI)      │
+│   (React)       │◄──►│   (Node.js)     │◄──►│   (DeepSeek)    │
 │                 │    │                 │    │                 │
 │ • Dashboard     │    │ • Scan Service  │    │ • Fix Generator │
 │ • Results View  │    │ • AutoFix API   │    │ • Code Analysis │
@@ -84,9 +84,9 @@ CyberSecScan is a comprehensive, AI-powered cybersecurity platform that automati
 Create a `.env` file with the following variables:
 
 ```env
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-AI_MODEL=gpt-4o-mini
+# DeepSeek Configuration
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+DEEPSEEK_MODEL=deepseek-coder
 
 # GitHub Configuration
 GITHUB_TOKEN=your_github_token_here
@@ -200,7 +200,7 @@ Configure the AI fix generation:
 
 ```env
 # AI Model Selection
-AI_MODEL=gpt-4o-mini  # or gpt-4, gpt-3.5-turbo
+DEEPSEEK_MODEL=deepseek-coder  # or deepseek-chat
 
 # Fix Generation Settings
 AI_CONFIDENCE_THRESHOLD=0.7
@@ -275,7 +275,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Semgrep](https://semgrep.dev/) for static analysis
 - [Trivy](https://trivy.dev/) for vulnerability scanning
 - [OWASP](https://owasp.org/) for security best practices
-- [OpenAI](https://openai.com/) for AI capabilities
+- [DeepSeek](https://deepseek.com/) for AI capabilities
 
 ## 📞 Support
 
