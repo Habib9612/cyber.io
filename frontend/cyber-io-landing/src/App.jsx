@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Button } from './components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card.jsx'
-import { Input } from './components/ui/input.jsx'
-import { Badge } from './components/ui/badge.jsx'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
 import { 
   Shield, 
   Search, 
@@ -29,8 +29,7 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AuthModal } from './components/AuthModal.jsx'
-import { RealInteractiveDemo } from './components/RealInteractiveDemo.jsx'
-import apiService from './services/api.js'
+import { InteractiveDemo } from './components/InteractiveDemo.jsx'
 import cyberLogo from './assets/cyber-logo.jpg'
 import heroBg from './assets/hero-bg.jpg'
 import './App.css'
@@ -40,14 +39,6 @@ function App() {
   const [user, setUser] = useState(null)
   const [showDemo, setShowDemo] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
-
-  // Check for existing session on app load
-  useEffect(() => {
-    const existingUser = apiService.getCurrentUser()
-    if (existingUser && apiService.isAuthenticated()) {
-      setUser(existingUser)
-    }
-  }, [])
 
   const handleEmailSignup = (e) => {
     e.preventDefault()
@@ -62,15 +53,8 @@ function App() {
     setShowAuthModal(false)
   }
 
-  const handleLogout = async () => {
-    try {
-      await apiService.logout()
-      setUser(null)
-    } catch (error) {
-      console.error('Logout failed:', error)
-      // Still clear user state even if API call fails
-      setUser(null)
-    }
+  const handleLogout = () => {
+    setUser(null)
   }
 
   const openAuthModal = () => {
@@ -350,7 +334,7 @@ function App() {
               </p>
             </motion.div>
 
-            <RealInteractiveDemo isVisible={showDemo} />
+            <InteractiveDemo isVisible={showDemo} />
           </div>
         </section>
       )}

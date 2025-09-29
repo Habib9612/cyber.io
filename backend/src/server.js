@@ -20,12 +20,14 @@ const scanRoutes = require('./routes/scan');
 const healthRoutes = require('./routes/health');
 const autofixRoutes = require('./routes/autofix');
 const webhookRoutes = require('./routes/webhook');
+const authRoutes = require('./routes/auth');
 
 // Use routes
 app.use('/api/scan', scanRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/autofix', autofixRoutes);
 app.use('/api/webhook', webhookRoutes);
+app.use('/api/auth', authRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
