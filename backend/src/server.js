@@ -15,6 +15,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../static')));
+
 // Import routes
 const scanRoutes = require('./routes/scan');
 const healthRoutes = require('./routes/health');
@@ -47,11 +50,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found'
-  });
+// Catch all handler: send back React's index.html file for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../static/index.html'));
 });
 
 app.listen(port, '0.0.0.0', () => {
