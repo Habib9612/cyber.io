@@ -1,427 +1,508 @@
 import { useState, useEffect } from 'react'
-import { Button } from './components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card.jsx'
-import { Input } from './components/ui/input.jsx'
-import { Badge } from './components/ui/badge.jsx'
-import { 
-  Shield, 
-  Search, 
-  GitBranch, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  Code, 
-  Bug,
-  Zap,
-  Github,
-  ExternalLink,
-  RefreshCw,
-  ArrowRight,
-  Play,
-  Star,
-  Users,
-  Lock,
-  Cpu,
-  Eye,
-  Mail,
-  User,
-  LogOut
-} from 'lucide-react'
-import { motion } from 'framer-motion'
-import { AuthModal } from './components/AuthModal.jsx'
-import { RealInteractiveDemo } from './components/RealInteractiveDemo.jsx'
-import apiService from './services/api.js'
-import cyberLogo from './assets/cyber-logo.jpg'
-import heroBg from './assets/hero-bg.jpg'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Label } from '@/components/ui/label.jsx'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Progress } from '@/components/ui/progress.jsx'
+import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
+import { Shield, Scan, Bot, Github, LogOut, User, Settings as SettingsIcon, Home, Activity } from 'lucide-react'
 import './App.css'
 
+// API base URL - use relative paths for deployment
+const API_BASE = '/api'
+
 function App() {
-  const [email, setEmail] = useState('')
   const [user, setUser] = useState(null)
-  const [showDemo, setShowDemo] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId'))
+  const [loading, setLoading] = useState(false)
+  const [scans, setScans] = useState([])
+  const [currentScan, setCurrentScan] = useState(null)
 
-  // Check for existing session on app load
+  // Check if user is logged in on app start
   useEffect(() => {
-    const existingUser = apiService.getCurrentUser()
-    if (existingUser && apiService.isAuthenticated()) {
-      setUser(existingUser)
+    if (sessionId) {
+      fetchUserProfile()
     }
-  }, [])
+  }, [sessionId])
 
-  const handleEmailSignup = (e) => {
-    e.preventDefault()
-    if (email) {
-      alert(`Thank you for signing up with ${email}! We'll be in touch soon.`)
-      setEmail('')
-    }
-  }
-
-  const handleLogin = (userData) => {
-    setUser(userData)
-    setShowAuthModal(false)
-  }
-
-  const handleLogout = async () => {
+  // Fetch user profile
+  const fetchUserProfile = async () => {
     try {
-      await apiService.logout()
-      setUser(null)
+      const response = await fetch(`${API_BASE}/auth/profile/${sessionId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+      } else {
+        // Invalid session, clear it
+        localStorage.removeItem('sessionId')
+        setSessionId(null)
+      }
     } catch (error) {
-      console.error('Logout failed:', error)
-      // Still clear user state even if API call fails
-      setUser(null)
+      console.error('Failed to fetch profile:', error)
     }
   }
 
-  const openAuthModal = () => {
-    setShowAuthModal(true)
+  // Login function
+  const login = async (email, password) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setUser(data.user)
+        setSessionId(data.sessionId)
+        localStorage.setItem('sessionId', data.sessionId)
+        return { success: true }
+      } else {
+        return { success: false, error: data.error }
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error' }
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const toggleDemo = () => {
-    setShowDemo(!showDemo)
+  // Register function
+  const register = async (name, email, password) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setUser(data.user)
+        setSessionId(data.sessionId)
+        localStorage.setItem('sessionId', data.sessionId)
+        return { success: true }
+      } else {
+        return { success: false, error: data.error }
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error' }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Logout function
+  const logout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      })
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      setUser(null)
+      setSessionId(null)
+      localStorage.removeItem('sessionId')
+    }
+  }
+
+  // Start scan function
+  const startScan = async (repoUrl) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/scan/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl, scanTypes: ['semgrep', 'trivy'] })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setCurrentScan({ id: data.scanId, status: 'started', repoUrl })
+        // Poll for scan status
+        pollScanStatus(data.scanId)
+        return { success: true, scanId: data.scanId }
+      } else {
+        return { success: false, error: data.error }
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error' }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Poll scan status
+  const pollScanStatus = async (scanId) => {
+    const poll = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/scan/status/${scanId}`)
+        if (response.ok) {
+          const data = await response.json()
+          setCurrentScan(data)
+          
+          if (data.status === 'completed' || data.status === 'failed') {
+            // Stop polling
+            return
+          } else {
+            // Continue polling
+            setTimeout(poll, 2000)
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error)
+      }
+    }
+    poll()
+  }
+
+  if (!user) {
+    return <AuthPage onLogin={login} onRegister={register} loading={loading} />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <motion.div 
-              className="flex items-center space-x-3"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <img src={cyberLogo} alt="Cyber.io" className="h-10 w-10 rounded-lg" />
-              <div>
-                <h1 className="text-xl font-bold text-white">Cyber.io</h1>
-                <p className="text-xs text-blue-300">AI-Powered Security</p>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              className="hidden md:flex items-center space-x-6"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <a href="#features" className="text-white hover:text-blue-300 transition-colors">Features</a>
-              <a href="#demo" className="text-white hover:text-blue-300 transition-colors">Demo</a>
-              <a href="#pricing" className="text-white hover:text-blue-300 transition-colors">Pricing</a>
-              {user ? (
-                <div className="flex items-center space-x-3">
-                  <span className="text-white text-sm">Welcome, {user.name}</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleLogout}
-                    className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
-                  </Button>
+    <Router>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <Navigation user={user} onLogout={logout} />
+        <main className="container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="/" element={<Dashboard user={user} currentScan={currentScan} onStartScan={startScan} loading={loading} />} />
+            <Route path="/scans" element={<ScanHistory scans={scans} />} />
+            <Route path="/settings" element={<Settings user={user} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
+  )
+}
+
+// Authentication Page Component
+function AuthPage({ onLogin, onRegister, loading }) {
+  const [isLogin, setIsLogin] = useState(true)
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' })
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    const result = isLogin 
+      ? await onLogin(formData.email, formData.password)
+      : await onRegister(formData.name, formData.email, formData.password)
+
+    if (!result.success) {
+      setError(result.error)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <Shield className="h-12 w-12 text-purple-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-white">Cyber.io</h1>
+          <p className="text-purple-200">AI-Powered Security Platform</p>
+        </div>
+
+        <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="text-white">{isLogin ? 'Sign In' : 'Create Account'}</CardTitle>
+            <CardDescription className="text-purple-200">
+              {isLogin ? 'Welcome back to Cyber.io' : 'Join the security revolution'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div>
+                  <Label htmlFor="name" className="text-white">Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="bg-white/10 border-purple-500/30 text-white placeholder:text-purple-300"
+                    placeholder="Your name"
+                    required={!isLogin}
+                  />
                 </div>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={openAuthModal}
-                  className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white"
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Login
-                </Button>
               )}
-            </motion.div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
-          style={{ backgroundImage: `url(${heroBg})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-purple-900/50" />
-        
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <Badge className="mb-6 bg-blue-500/20 text-blue-300 border-blue-400">
-              <Zap className="h-3 w-3 mr-1" />
-              AI-Powered Security Platform
-            </Badge>
-            
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-              AI-Powered Security,
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Effortlessly Automated
-              </span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Cyber.io scans your code, finds vulnerabilities, and creates fixes automatically. 
-              Ship secure code, faster than ever before.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Button 
-                size="lg" 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-3 text-lg"
-                onClick={toggleDemo}
-              >
-                <Play className="h-5 w-5 mr-2" />
-                Try Demo
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="border-white/30 text-white hover:bg-white/10 px-8 py-3 text-lg"
-              >
-                <Github className="h-5 w-5 mr-2" />
-                View on GitHub
-              </Button>
-            </div>
-            
-            <div className="flex items-center justify-center space-x-8 text-gray-400">
-              <div className="flex items-center space-x-2">
-                <Star className="h-5 w-5 text-yellow-400" />
-                <span>4.9/5 Rating</span>
+              <div>
+                <Label htmlFor="email" className="text-white">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="bg-white/10 border-purple-500/30 text-white placeholder:text-purple-300"
+                  placeholder="your@email.com"
+                  required
+                />
               </div>
-              <div className="flex items-center space-x-2">
-                <Users className="h-5 w-5 text-blue-400" />
-                <span>10k+ Developers</span>
+              <div>
+                <Label htmlFor="password" className="text-white">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="bg-white/10 border-purple-500/30 text-white placeholder:text-purple-300"
+                  placeholder="••••••••"
+                  required
+                />
               </div>
-              <div className="flex items-center space-x-2">
-                <Shield className="h-5 w-5 text-green-400" />
-                <span>99.9% Uptime</span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-slate-900/50">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              A Comprehensive Security Platform for Modern Development
-            </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Combine the power of multiple security tools with AI intelligence to create an unmatched security workflow.
-            </p>
-          </motion.div>
+              {error && (
+                <Alert className="bg-red-500/20 border-red-500/50">
+                  <AlertDescription className="text-red-200">{error}</AlertDescription>
+                </Alert>
+              )}
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              viewport={{ once: true }}
-            >
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300 h-full">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
-                    <Search className="h-6 w-6 text-blue-400" />
-                  </div>
-                  <CardTitle className="text-white">Comprehensive Code Analysis</CardTitle>
-                  <CardDescription className="text-gray-400">
-                    We combine the power of multiple open-source security tools like Semgrep and Trivy to provide deep and accurate analysis of your codebase.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-gray-300">
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>SAST with Semgrep</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>Dependency scanning with Trivy</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>Container security analysis</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              viewport={{ once: true }}
-            >
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500/50 transition-all duration-300 h-full">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                    <Cpu className="h-6 w-6 text-purple-400" />
-                  </div>
-                  <CardTitle className="text-white">Intelligent, Automated Fixes</CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Our AI engine, powered by advanced language models, doesn't just find vulnerabilities—it fixes them with ready-to-merge pull requests.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-gray-300">
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>AI-powered fix generation</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>High-confidence corrections</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>Detailed explanations</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              viewport={{ once: true }}
-            >
-              <Card className="bg-slate-800/50 border-slate-700 hover:border-green-500/50 transition-all duration-300 h-full">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
-                    <GitBranch className="h-6 w-6 text-green-400" />
-                  </div>
-                  <CardTitle className="text-white">Automated Security Workflow</CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Integrate Cyber.io into your CI/CD pipeline with ease. Get automated pull requests with detailed explanations, right in your GitHub repository.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-gray-300">
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>GitHub integration</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>CI/CD pipeline support</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span>Automated PR creation</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Demo Section */}
-      {showDemo && (
-        <section id="demo" className="py-20 bg-slate-800/30">
-          <div className="container mx-auto px-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="text-center mb-12"
-            >
-              <h2 className="text-4xl font-bold text-white mb-6">See Cyber.io in Action</h2>
-              <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-                Try our interactive demo to experience the power of AI-driven security. No signup required.
-              </p>
-            </motion.div>
-
-            <RealInteractiveDemo isVisible={showDemo} />
-          </div>
-        </section>
-      )}
-
-      {/* Email Signup Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
-        <div className="container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl font-bold text-white mb-6">Ready to Secure Your Code?</h2>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Join thousands of developers who trust Cyber.io to keep their applications secure.
-            </p>
-            
-            <form onSubmit={handleEmailSignup} className="max-w-md mx-auto flex gap-4">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                required
-              />
               <Button 
-                type="submit"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                type="submit" 
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                disabled={loading}
               >
-                <Mail className="h-4 w-4 mr-2" />
-                Get Started
+                {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
               </Button>
             </form>
-          </motion.div>
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-slate-900 border-t border-slate-800">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <img src={cyberLogo} alt="Cyber.io" className="h-8 w-8 rounded" />
-              <div>
-                <h3 className="text-white font-bold">Cyber.io</h3>
-                <p className="text-gray-400 text-sm">AI-Powered Security Platform</p>
-              </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-purple-300 hover:text-purple-100 text-sm"
+              >
+                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+// Navigation Component
+function Navigation({ user, onLogout }) {
+  return (
+    <nav className="bg-black/20 backdrop-blur-md border-b border-purple-500/20">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Shield className="h-8 w-8 text-purple-400" />
+          <span className="text-xl font-bold text-white">Cyber.io</span>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <span className="text-purple-200">Welcome, {user.name}</span>
+          <Button variant="ghost" size="sm" onClick={onLogout} className="text-purple-300 hover:text-white">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+// Dashboard Component
+function Dashboard({ user, currentScan, onStartScan, loading }) {
+  const [repoUrl, setRepoUrl] = useState('')
+  const [scanError, setScanError] = useState('')
+
+  const handleStartScan = async (e) => {
+    e.preventDefault()
+    setScanError('')
+
+    if (!repoUrl.trim()) {
+      setScanError('Please enter a repository URL')
+      return
+    }
+
+    const result = await onStartScan(repoUrl)
+    if (!result.success) {
+      setScanError(result.error)
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-white mb-4">Security Dashboard</h1>
+        <p className="text-purple-200 text-lg">Scan your repositories for vulnerabilities and get AI-powered fixes</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-purple-200">Total Scans</CardTitle>
+            <Scan className="h-4 w-4 text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">12</div>
+            <p className="text-xs text-purple-300">+2 from last week</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-purple-200">Vulnerabilities Fixed</CardTitle>
+            <Bot className="h-4 w-4 text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">47</div>
+            <p className="text-xs text-purple-300">AI-powered fixes</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-purple-200">Security Score</CardTitle>
+            <Shield className="h-4 w-4 text-purple-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">A+</div>
+            <p className="text-xs text-purple-300">Excellent security</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+        <CardHeader>
+          <CardTitle className="text-white">Start New Scan</CardTitle>
+          <CardDescription className="text-purple-200">
+            Enter a GitHub repository URL to begin security analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleStartScan} className="space-y-4">
+            <div>
+              <Label htmlFor="repo-url" className="text-white">Repository URL</Label>
+              <Input
+                id="repo-url"
+                type="url"
+                value={repoUrl}
+                onChange={(e) => setRepoUrl(e.target.value)}
+                className="bg-white/10 border-purple-500/30 text-white placeholder:text-purple-300"
+                placeholder="https://github.com/username/repository"
+              />
+            </div>
+
+            {scanError && (
+              <Alert className="bg-red-500/20 border-red-500/50">
+                <AlertDescription className="text-red-200">{scanError}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button 
+              type="submit" 
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={loading}
+            >
+              {loading ? 'Starting Scan...' : 'Start Security Scan'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {currentScan && (
+        <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="text-white">Current Scan</CardTitle>
+            <CardDescription className="text-purple-200">
+              {currentScan.repoUrl}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-white">Status:</span>
+              <Badge variant={currentScan.status === 'completed' ? 'default' : 'secondary'}>
+                {currentScan.status}
+              </Badge>
             </div>
             
-            <div className="flex items-center space-x-6 text-gray-400">
-              <a href="#" className="hover:text-white transition-colors">Documentation</a>
-              <a href="#" className="hover:text-white transition-colors">Pricing</a>
-              <a href="#" className="hover:text-white transition-colors">About Us</a>
-              <a href="#" className="hover:text-white transition-colors">Contact</a>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-white">Progress:</span>
+                <span className="text-purple-200">{currentScan.progress || 0}%</span>
+              </div>
+              <Progress value={currentScan.progress || 0} className="bg-purple-900/50" />
             </div>
-          </div>
-          
-          <div className="mt-8 pt-8 border-t border-slate-800 text-center text-gray-400">
-            <p>&copy; 2025 Cyber.io. All rights reserved. Making security accessible, automated, and intelligent.</p>
-          </div>
-        </div>
-      </footer>
 
-      {/* Authentication Modal */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-        onLogin={handleLogin}
-      />
+            {currentScan.status === 'completed' && currentScan.results && (
+              <div className="mt-4 space-y-2">
+                <h4 className="text-white font-semibold">Scan Results:</h4>
+                {currentScan.results.semgrep && (
+                  <div className="text-purple-200">
+                    Semgrep: {currentScan.results.semgrep.summary?.total || 0} findings
+                  </div>
+                )}
+                {currentScan.results.trivy && (
+                  <div className="text-purple-200">
+                    Trivy: {currentScan.results.trivy.summary?.total || 0} vulnerabilities
+                  </div>
+                )}
+                {currentScan.securityScore && (
+                  <div className="text-purple-200">
+                    Security Score: {currentScan.securityScore.grade} ({currentScan.securityScore.score}/100)
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// Scan History Component
+function ScanHistory({ scans }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-white">Scan History</h1>
+      <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+        <CardHeader>
+          <CardTitle className="text-white">Recent Scans</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-purple-200">No scans available yet. Start your first scan!</div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Settings Component
+function Settings({ user }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-white">Settings</h1>
+      <Card className="bg-white/10 backdrop-blur-md border-purple-500/20">
+        <CardHeader>
+          <CardTitle className="text-white">Profile Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-white">Name</Label>
+            <Input value={user.name} className="bg-white/10 border-purple-500/30 text-white" readOnly />
+          </div>
+          <div>
+            <Label className="text-white">Email</Label>
+            <Input value={user.email} className="bg-white/10 border-purple-500/30 text-white" readOnly />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
