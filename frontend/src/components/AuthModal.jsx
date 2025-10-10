@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import apiService from '../services/api.js'
-import { Button } from '../components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card.jsx'
-import { Input } from '../components/ui/input.jsx'
-import { Label } from '../components/ui/label.jsx'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Label } from '@/components/ui/label.jsx'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { 
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog.jsx'
+} from '@/components/ui/dialog.jsx'
 import { 
   Mail, 
   Lock, 
@@ -40,57 +39,47 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
     e.preventDefault()
     setIsLoading(true)
     
-    try {
-      const response = await apiService.login(loginData.email, loginData.password)
-      onLogin(response.user)
-      onClose()
-      setLoginData({ email: '', password: '' })
-    } catch (error) {
-      console.error('Login failed:', error)
-      alert('Login failed: ' + error.message)
-    } finally {
+    // Simulate API call
+    setTimeout(() => {
+      if (loginData.email && loginData.password) {
+        onLogin({
+          name: loginData.email.split('@')[0],
+          email: loginData.email
+        })
+        onClose()
+      }
       setIsLoading(false)
-    }
+    }, 1000)
   }
 
   const handleSignup = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     
-    if (signupData.password !== signupData.confirmPassword) {
-      alert('Passwords do not match')
+    // Simulate API call
+    setTimeout(() => {
+      if (signupData.email && signupData.password && signupData.password === signupData.confirmPassword) {
+        onLogin({
+          name: signupData.name || signupData.email.split('@')[0],
+          email: signupData.email
+        })
+        onClose()
+      }
       setIsLoading(false)
-      return
-    }
-    
-    try {
-      const response = await apiService.register(signupData.name, signupData.email, signupData.password)
-      onLogin(response.user)
-      onClose()
-      setSignupData({ name: '', email: '', password: '', confirmPassword: '' })
-    } catch (error) {
-      console.error('Signup failed:', error)
-      alert('Signup failed: ' + error.message)
-    } finally {
-      setIsLoading(false)
-    }
+    }, 1000)
   }
 
-  const handleSocialLogin = async (provider) => {
+  const handleSocialLogin = (provider) => {
     setIsLoading(true)
-    
-    try {
-      const email = `user@${provider.toLowerCase()}.com`
-      const name = `User from ${provider}`
-      const response = await apiService.socialLogin(provider, email, name)
-      onLogin(response.user)
+    // Simulate social login
+    setTimeout(() => {
+      onLogin({
+        name: `User from ${provider}`,
+        email: `user@${provider.toLowerCase()}.com`
+      })
       onClose()
-    } catch (error) {
-      console.error('Social login failed:', error)
-      alert('Social login failed: ' + error.message)
-    } finally {
       setIsLoading(false)
-    }
+    }, 1000)
   }
 
   return (
